@@ -203,6 +203,7 @@ while end_index < len(instructions):
 
 
 def position_after_rotation(pos):
+    # Calculates new coordinates when the current face is rotated
     return side_length - 1 - pos[1], pos[0]
 
 
@@ -215,6 +216,6 @@ left_most = (current_face.mini_square[0] * side_length, current_face.mini_square
 
 final_pos = (current_pos[0] + left_most[0], current_pos[1] + left_most[1])
 
-print((final_pos[1]+1)*1000+(final_pos[0]+1)*4 + d_index)
+print((final_pos[1] + 1) * 1000 + (final_pos[0] + 1) * 4 + d_index)
 
 print(time.time() - start_time)
