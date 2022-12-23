@@ -13,12 +13,14 @@ with open('input.txt') as f:
 elves = list((x, y) for y, line in enumerate(lines) for x in range(len(line)) if line[x] == '#')
 elves_pos = set(elves)
 moving = True
+N_ROUNDS = 10
+
 round_index = 0
 
 direction_index = 0
 counter = defaultdict(int)
 
-while moving:
+while moving and round_index < N_ROUNDS:
     considered_positions = []
     counter = defaultdict(int)
     for elf in elves:
@@ -62,7 +64,10 @@ while moving:
     round_index += 1
     direction_index = (direction_index + 1) % len(cardinal_directions)
 
+minx = min(elf[0] for elf in elves)
+maxx = max(elf[0] for elf in elves)
+miny = min(elf[1] for elf in elves)
+maxy = max(elf[1] for elf in elves)
 
-
-print(round_index)
+print((maxx - minx + 1) * (maxy - miny + 1) - len(elves))
 print(time.time() - start_time)
