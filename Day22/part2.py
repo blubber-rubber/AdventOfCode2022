@@ -1,11 +1,13 @@
 import time
-import re
-
-import numpy as np
 
 start_time = time.time()
 '''
-Given a face in a net, we can only determine the orientation of the (potentially) neighbouring faces
+Given a face in a net, we can only determine the orientation of the (potentially) neighbouring faces.
+Therefore we will always center the current face, making the crossing of the cube edges trivial.
+However we must first determine which square of the cube net corresponds with which face of the cube.
+
+To increase the visual understanding the front, left, right and back face has an arrow pointing up,
+while the up and down face have an arrow pointing into the screen. 
 
          _______                        _______                        _______            
         |       |                      |       |                      |       |           
@@ -102,6 +104,13 @@ instructions = "".join(lines[-1])
 n_symbols = sum(sum(x != ' ' for x in line) for line in grid)  # Determine side_length of cube
 side_length = int((n_symbols / 6) ** (1 / 2))
 
+"""
+We will first somewhat simplify the problem by adding where the squares are in our input,
+then we will use the stamps to explore the squares of the net in a bfs way.
+The stamps can tell which face and its orientation is of every known face. 
+We start with one known face: the upper left square of the net is the (U,^) face
+"""
+
 squares = []
 y = 0
 while y * side_length < len(grid):
@@ -123,7 +132,7 @@ while stamper:  # Still positions to be stamped
     stamped.add(current_pos)
     current_face, orientation = small_square2face[current_pos]
     stamp = STAMPS[current_face]
-    while stamp.name != (current_face, orientation):  # Rotate stamp untill it aligns
+    while stamp.name != (current_face, orientation):  # Rotate stamp until it aligns with the square
         stamp.rotate()
 
     for index, neighbour_face in enumerate(stamp.get_neighbours()):
@@ -134,6 +143,13 @@ while stamper:  # Still positions to be stamped
 
 
 class Face:
+    """
+    This class divides the cube net in well-defined faces.
+    We will rotate these faces while walking on the cube, so it is important that we keep track of
+    the original orientation in 'og_orientation', as well as which mini-square from the input corresponds
+     with the face.
+
+    """
 
     def __init__(self, name, grid, orientation, mini_square):
         self.name = name
@@ -148,12 +164,19 @@ class Face:
 
 
 FACES = {}
-for pos, face in small_square2face.items():
+for pos, face in small_square2face.items():  # Create all 6 faces
     name, orientation = face
     mini_grid = [[grid[y][x] for x in range(pos[0] * side_length, (pos[0] + 1) * side_length)] for y in
                  range(pos[1] * side_length, (pos[1] + 1) * side_length)]
     FACES[name] = Face(name, mini_grid, orientation, pos)
 
+"""
+Now we just need to do the walking on the cube.
+If we go over an edge we will first rotate the stamp, such that it alligns with the orientation of the current face.
+Now we can use the stamp to check to which neighbouring face we are going and what the orientation of that face should be
+Finally we rotate the new neighbouring face such that it aligns with the stamp.
+
+"""
 current_pos = (0, 0)
 current_face = FACES["U"]
 d_index = 0
@@ -161,6 +184,7 @@ d_index = 0
 start_index = 0
 end_index = 0
 while end_index < len(instructions):
+    # Read new step instruction and rotation instruction
     while end_index < len(instructions) and not instructions[end_index] in 'LR':
         end_index += 1
     length_instr = int(instructions[start_index:end_index])
@@ -171,22 +195,26 @@ while end_index < len(instructions):
     while move_index < length_instr and moving:
         direction = DIRECTIONS2D[d_index]
         new_pos = (current_pos[0] + direction[0], current_pos[1] + direction[1])
-        if 0 <= new_pos[0] < side_length and 0 <= new_pos[1] < side_length:
+        if 0 <= new_pos[0] < side_length and 0 <= new_pos[1] < side_length:  # Check if we are crossing an edge
+            # No edge was crossed
             if current_face.grid[new_pos[1]][new_pos[0]] != '#':
                 current_pos = new_pos
             else:
                 moving = False
         else:
+            # An edge was crossed
             current_face_name = current_face.name
             current_stamp = STAMPS[current_face_name]
             while current_stamp.name != (current_face_name, current_face.current_orientation):
-                current_stamp.rotate()
+                current_stamp.rotate()  # Align the stamp with the current face
+
             neighbouring_faces = current_stamp.get_neighbours()
             relevant_neighbour = neighbouring_faces[d_index]
             neighbour_face = FACES[relevant_neighbour[0]]
             while neighbour_face.current_orientation != relevant_neighbour[1]:
+                # Align the neighbouring face with stamp
                 neighbour_face.rotate()
-            new_pos = (new_pos[0] % side_length, new_pos[1] % side_length)
+            new_pos = (new_pos[0] % side_length, new_pos[1] % side_length)  # New position lies in new face
             if neighbour_face.grid[new_pos[1]][new_pos[0]] != "#":
                 current_pos = new_pos
                 current_face = neighbour_face
@@ -195,11 +223,16 @@ while end_index < len(instructions):
 
         move_index += 1
 
-    if rotation_instr:
+    if rotation_instr:  # Change direction
         d_index = (d_index + 2 * (rotation_instr == "R") - 1) % len(DIRECTIONS2D)
 
     end_index += 1
     start_index = end_index
+
+"""
+Finally we must rotate the face where the walk ended back to its original orientation, 
+such that the right coordinates can be determined by adding the offset of the square in the net. 
+"""
 
 
 def position_after_rotation(pos):
@@ -207,12 +240,12 @@ def position_after_rotation(pos):
     return side_length - 1 - pos[1], pos[0]
 
 
-while current_face.current_orientation != current_face.og_orientation:
+while current_face.current_orientation != current_face.og_orientation:  # Rotate until og_orientation is reached
     current_face.rotate()
     current_pos = position_after_rotation(current_pos)
     d_index = (d_index + 1) % len(DIRECTIONS2D)
 
-left_most = (current_face.mini_square[0] * side_length, current_face.mini_square[1] * side_length)
+left_most = (current_face.mini_square[0] * side_length, current_face.mini_square[1] * side_length)  # Offset of net
 
 final_pos = (current_pos[0] + left_most[0], current_pos[1] + left_most[1])
 
